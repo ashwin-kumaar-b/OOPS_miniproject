@@ -1,0 +1,132 @@
+package employee;
+
+import java.sql.*;
+
+class DatabaseManager {
+    private Connection con;
+    private static final String URL = "jdbc:mysql://localhost:3306/employeetracker";
+    private static final String USER = "root";
+    private static final String PASS = "murugan06";
+
+    public DatabaseManager() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            // Create DB if missing
+            con = DriverManager.getConnection("jdbc:mysql://localhost:3306/", USER, PASS);
+            try (Statement st = con.createStatement()) {
+                st.execute("CREATE DATABASE IF NOT EXISTS employeetracker");
+            }
+
+            // Connect to DB
+            con = DriverManager.getConnection(URL, USER, PASS);
+            createTables();
+        } catch (Exception e) {
+            System.out.println("DB Init Error: " + e.getMessage());
+        }
+    }
+
+    private void createTables() throws SQLException {
+        try (Statement st = con.createStatement()) {
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS employees(
+                    employee_id VARCHAR(10) PRIMARY KEY,
+                    name VARCHAR(50),
+                    department VARCHAR(50),
+                    position VARCHAR(50),
+                    base_salary DOUBLE)
+            """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS performance_reviews(
+                    review_id VARCHAR(10) PRIMARY KEY,
+                    employee_id VARCHAR(10),
+                    quarter INT,
+                    year INT,
+                    productivity_score DOUBLE,
+                    quality_score DOUBLE,
+                    teamwork_score DOUBLE,
+                    manager_comments VARCHAR(255),
+                    FOREIGN KEY(employee_id) REFERENCES employees(employee_id))
+            """);
+        }
+    }
+
+    public void demo() {
+        try {
+            insertData();
+            showEmployees();
+            showJoinResults();
+        } catch (SQLException e) {
+            System.out.println("DB Error: " + e.getMessage());
+        }
+    }
+
+    private void insertData() throws SQLException {
+        String emp = "INSERT IGNORE INTO employees VALUES(?,?,?,?,?)";
+        try (PreparedStatement p = con.prepareStatement(emp)) {
+            p.setString(1, "E001"); p.setString(2, "John Doe");
+            p.setString(3, "Engineering"); p.setString(4, "Developer");
+            p.setDouble(5, 75000); p.executeUpdate();
+
+            p.setString(1, "E002"); p.setString(2, "Jane Smith");
+            p.setString(3, "Marketing"); p.setString(4, "Manager");
+            p.setDouble(5, 65000); p.executeUpdate();
+        }
+
+        String rev = "INSERT IGNORE INTO performance_reviews VALUES(?,?,?,?,?,?,?,?)";
+        try (PreparedStatement p = con.prepareStatement(rev)) {
+            p.setString(1, "R001"); p.setString(2, "E001");
+            p.setInt(3, 1); p.setInt(4, 2024);
+            p.setDouble(5, 4.5); p.setDouble(6, 4.0);
+            p.setDouble(7, 4.2); p.setString(8, "Excellent work");
+            p.executeUpdate();
+        }
+    }
+
+    private void showEmployees() throws SQLException {
+        try (Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery("SELECT * FROM employees")) {
+
+            System.out.println("\nEMPLOYEES:");
+            while (rs.next()) {
+                System.out.printf("%s | %s | %s | %s | %.2f%n",
+                    rs.getString(1), rs.getString(2),
+                    rs.getString(3), rs.getString(4),
+                    rs.getDouble(5));
+            }
+        }
+    }
+
+    private void showJoinResults() throws SQLException {
+        String q = """
+            SELECT e.name, e.department, p.productivity_score, p.manager_comments
+            FROM employees e JOIN performance_reviews p 
+            ON e.employee_id = p.employee_id
+        """;
+
+        try (Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(q)) {
+
+            System.out.println("\nJOIN RESULTS:");
+            while (rs.next()) {
+                System.out.printf("%s | %s | %.1f | %s%n",
+                    rs.getString(1), rs.getString(2),
+                    rs.getDouble(3), rs.getString(4));
+            }
+        }
+    }
+
+    public void close() {
+        try { if (con != null) con.close(); }
+        catch (SQLException ignored) {}
+    }
+}
+
+public class mod4 {
+    public static void main(String[] args) {
+        DatabaseManager db = new DatabaseManager();
+        db.demo();
+        db.close();
+    }
+}
