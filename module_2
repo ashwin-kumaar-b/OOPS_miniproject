@@ -1,0 +1,112 @@
+package employee;
+
+import java.io.*;
+import java.util.*;
+
+public class Mod2 {
+    public static void main(String[] args) {
+
+        try {
+            EmployeeDataManager mgr = new EmployeeDataManager();
+            mgr.addEmployee(new Employee("E001", "John", "IT", "Dev", 75000));
+            mgr.addEmployee(new Employee("E002", "Jane", "HR", "Mgr", 65000));
+
+            System.out.println("Departments: " + Arrays.toString(mgr.getDepartments()));
+
+            DataExport exp = new JSONExport();
+            exp.exportData(mgr.getAllEmployees());
+
+        } catch (InvalidDataException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+}
+
+// Exceptions
+class InvalidDataException extends Exception {
+    public InvalidDataException(String msg) { super(msg); }
+}
+
+class EmployeeNotFoundException extends InvalidDataException {
+    public EmployeeNotFoundException(String id) { super("Employee not found: " + id); }
+}
+
+// Interface
+interface DataExport {
+    void exportData(List<Employee> list);
+}
+
+class JSONExport implements DataExport {
+    public void exportData(List<Employee> list) {
+        System.out.println("Exporting " + list.size() + " employees as JSON");
+    }
+}
+
+// Manager class
+class EmployeeDataManager {
+    private Map<String, Employee> map = new HashMap<>();
+
+    public void addEmployee(Employee e) throws InvalidDataException {
+        if (e == null || e.getEmployeeId().isBlank())
+            throw new InvalidDataException("Invalid Employee");
+
+        String id = e.getEmployeeId().trim().toUpperCase();
+        if (map.containsKey(id))
+            throw new InvalidDataException("Duplicate ID");
+
+        e.setEmployeeId(id);
+        map.put(id, e);
+    }
+
+    public Employee getEmployee(String id) throws EmployeeNotFoundException {
+        Employee e = map.get(id.toUpperCase());
+        if (e == null) throw new EmployeeNotFoundException(id);
+        return e;
+    }
+
+    public String[] getDepartments() {
+        return map.values().stream().map(Employee::getDepartment).distinct().toArray(String[]::new);
+    }
+
+    public List<Employee> getAllEmployees() {
+        return new ArrayList<>(map.values());
+    }
+
+    // Inner class
+    public class Stats {
+        public int total() { return map.size(); }
+    }
+
+    // I/O
+    public void save(String file) {
+        try (ObjectOutputStream o = new ObjectOutputStream(new FileOutputStream(file))) {
+            o.writeObject(map);
+        } catch (Exception e) { System.out.println("Save error"); }
+    }
+
+    public void load(String file) {
+        try (ObjectInputStream i = new ObjectInputStream(new FileInputStream(file))) {
+            map = (Map<String, Employee>) i.readObject();
+        } catch (Exception e) { System.out.println("Load error"); }
+    }
+}
+
+// Cloning
+class PerformanceReview implements Cloneable {
+    private String id, empId, comments;
+    private int q, y;
+    private double[] scores;
+
+    public PerformanceReview(String id, String empId, int q, int y, double[] s, String c) {
+        this.id = id; this.empId = empId; this.q = q; this.y = y;
+        scores = s.clone(); comments = c;
+    }
+
+    public PerformanceReview clone() {
+        try {
+            PerformanceReview pr = (PerformanceReview) super.clone();
+            pr.scores = scores.clone();
+            return pr;
+        } catch (Exception e) { throw new RuntimeException(); }
+    }
+}
