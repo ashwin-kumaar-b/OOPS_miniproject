@@ -1,0 +1,62 @@
+-- ✅ Disable safe mode for full cleanup
+SET SQL_SAFE_UPDATES = 0;
+
+-- 🧩 Drop existing tables (clean start)
+DROP TABLE IF EXISTS performance_reviews;
+DROP TABLE IF EXISTS employees;
+
+-- ✅ Re-enable safe updates (optional)
+SET SQL_SAFE_UPDATES = 1;
+
+-- ✅ Create database and use it
+CREATE DATABASE IF NOT EXISTS employeetracker;
+USE employeetracker;
+
+-- ✅ Create employees table
+CREATE TABLE employees (
+    employee_id VARCHAR(10) PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    department VARCHAR(50) NOT NULL,
+    position VARCHAR(50) NOT NULL,
+    base_salary DOUBLE NOT NULL
+);
+
+-- ✅ Create performance_reviews table
+CREATE TABLE performance_reviews (
+    review_id VARCHAR(10) PRIMARY KEY,
+    employee_id VARCHAR(10) NOT NULL,
+    quarter INT NOT NULL,
+    year INT NOT NULL,
+    productivity_score DOUBLE NOT NULL,
+    quality_score DOUBLE NOT NULL,
+    teamwork_score DOUBLE NOT NULL,
+    manager_comments VARCHAR(255),
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
+);
+
+-- ✅ Insert employees
+INSERT INTO employees VALUES
+('E001', 'John Doe', 'Engineering', 'Developer', 75000),
+('E002', 'Jane Smith', 'Marketing', 'Manager', 65000),
+('E003', 'Murugan', 'Civil', 'HR', 800000),
+('E004', 'Emily Davis', 'Engineering', 'Tester', 58000),
+('E005', 'Michael Johnson', 'HR', 'Recruiter', 60000);
+
+-- ✅ Insert performance reviews
+INSERT INTO performance_reviews VALUES
+('R001', 'E001', 1, 2024, 4.5, 4.0, 4.2, 'Excellent work'),
+('R002', 'E002', 2, 2024, 4.1, 4.3, 4.0, 'Good leadership'),
+('R003', 'E003', 3, 2024, 4.2, 3.9, 4.3, 'Strong performer'),
+('R004', 'E004', 4, 2024, 4.0, 4.2, 3.9, 'Consistent worker'),
+('R005', 'E005', 1, 2024, 4.3, 4.1, 4.0, 'Very organized');
+
+-- ✅ Show data
+SELECT * FROM employees;
+SELECT * FROM performance_reviews;
+
+-- ✅ Join query
+SELECT e.employee_id, e.name, e.department, e.position, p.quarter, p.year,
+       p.productivity_score, p.quality_score, p.teamwork_score, p.manager_comments
+FROM employees e
+JOIN performance_reviews p ON e.employee_id = p.employee_id
+ORDER BY e.employee_id;
