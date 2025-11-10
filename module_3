@@ -1,0 +1,168 @@
+// UNIT III: Generics, Multi-threading, Synchronization
+package employee;
+
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
+
+// MAIN DRIVER
+public class mod3 {
+    public static void main(String[] args) {
+        PerformanceSystem system = new PerformanceSystem();
+        system.runDemo();
+    }
+}
+
+// ==================== GENERIC REPOSITORY ====================
+class Repository<T> {
+    private final Map<String, T> map = new ConcurrentHashMap<>();
+    private final String type;
+
+    public Repository(String type) { this.type = type; }
+
+    public void store(String id, T item) { map.put(id, item); }
+    public T get(String id) { return map.get(id); }
+    public List<T> getAll() { return new ArrayList<>(map.values()); }
+
+    // Generic bounded method
+    public <U extends Employee> void process(List<U> employees) {
+        employees.forEach(e -> System.out.println("Processing " + e.getName()));
+    }
+}
+
+// ==================== MULTI-THREADED PERFORMANCE CALCULATOR ====================
+class PerformanceCalculator implements Callable<Double> {
+    private final String employeeId;
+    private final List<PerformanceReview> reviews;
+    private final CountDownLatch latch;
+
+    public PerformanceCalculator(String id, List<PerformanceReview> r, CountDownLatch latch) {
+        this.employeeId = id; this.reviews = r; this.latch = latch;
+    }
+
+    @Override
+    public Double call() throws Exception {
+        try {
+            Thread.sleep(500); // simulate work
+            return reviews.stream()
+                    .mapToDouble(PerformanceReview::calculateOverallScore)
+                    .average().orElse(0.0);
+        } finally { latch.countDown(); }
+    }
+}
+
+// ==================== SYSTEM USING GENERICS & THREADS ====================
+class PerformanceSystem {
+    private final Repository<Employee> empRepo = new Repository<>("Employee");
+    private final Repository<PerformanceReview> revRepo = new Repository<>("Review");
+    private final ExecutorService exec = Executors.newFixedThreadPool(3);
+    private final Object syncLock = new Object();
+
+    public void runDemo() {
+        addData();
+        demoGenerics();
+        demoThreads();
+        demoSync();
+        exec.shutdown();
+    }
+
+    private void addData() {
+        empRepo.store("E001", new Employee("E001","John","Engineering","Dev",75000));
+        empRepo.store("E002", new Employee("E002","Jane","Marketing","Manager",65000));
+
+        revRepo.store("R1", new PerformanceReview("R1","E001",
+                1,2024,new double[]{4.5,4.2,4.1},"Good"));
+        revRepo.store("R2", new PerformanceReview("R2","E002",
+                1,2024,new double[]{4.0,4.3,4.1},"Great"));
+    }
+
+    private void demoGenerics() {
+        System.out.println("\n=== GENERICS ===");
+        empRepo.process(empRepo.getAll());
+    }
+
+    private void demoThreads() {
+        System.out.println("\n=== MULTI-THREADING ===");
+
+        List<Employee> employees = empRepo.getAll();
+        CountDownLatch latch = new CountDownLatch(employees.size());
+        List<Future<Double>> results = new ArrayList<>();
+
+        for (Employee e : employees) {
+            List<PerformanceReview> reviews = revRepo.getAll().stream()
+                .filter(r -> r.getEmployeeId().equals(e.getEmployeeId()))
+                .collect(Collectors.toList());
+
+            results.add(exec.submit(new PerformanceCalculator(e.getEmployeeId(), reviews, latch)));
+        }
+
+        try {
+            latch.await();
+            for (int i = 0; i < results.size(); i++) {
+                System.out.println(employees.get(i).getName() +
+                        " Score → " + results.get(i).get());
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void demoSync() {
+        System.out.println("\n=== SYNCHRONIZATION ===");
+
+        Runnable task = () -> {
+            synchronized (syncLock) {
+                System.out.println(Thread.currentThread().getName() + " inside sync block");
+            }
+        };
+
+        exec.execute(task);
+        exec.execute(task);
+        exec.execute(task);
+    }
+}
+
+// ==================== SYNCHRONIZERS (Semaphore + Barrier) ====================
+class PerformanceMonitor {
+    private final Semaphore sem = new Semaphore(2);
+    private final CyclicBarrier barrier = new CyclicBarrier(2,
+            () -> System.out.println("Both threads reached the barrier"));
+
+    public void monitor(String name) {
+        try {
+            sem.acquire();
+            Thread.sleep(500);
+            barrier.await();
+        } catch (Exception ignored) {
+        } finally {
+            sem.release();
+        }
+    }
+}
+
+// ==================== SIMPLE DATA CLASSES ====================
+class Employee {
+    private final String id, name, dept, role;
+    private final double salary;
+
+    public Employee(String id, String name, String dept, String role, double salary) {
+        this.id = id; this.name = name; this.dept = dept; this.role = role; this.salary = salary;
+    }
+
+    public String getEmployeeId() { return id; }
+    public String getName() { return name; }
+}
+
+class PerformanceReview {
+    private final String id, employeeId, comments;
+    private final int quarter, year;
+    private final double[] scores;
+
+    public PerformanceReview(String id, String eid, int q, int y, double[] s, String c) {
+        this.id=id; this.employeeId=eid; this.quarter=q; this.year=y; this.scores=s; this.comments=c;
+    }
+
+    public String getEmployeeId() { return employeeId; }
+
+    public double calculateOverallScore() {
+        return Arrays.stream(scores).average().orElse(0.0);
+    }
+}
