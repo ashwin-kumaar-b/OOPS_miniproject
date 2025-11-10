@@ -1,0 +1,101 @@
+package employee;
+
+import javafx.application.Application;
+import javafx.beans.property.*;
+import javafx.collections.*;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import java.sql.*;
+
+public class mod5 extends Application {
+
+    private static final String URL = "jdbc:mysql://localhost:3306/employeetracker";
+    private static final String USER = "root";
+    private static final String PASS = "murugan06";
+
+    private TableView<EmployeeRow> table = new TableView<>();
+    private ObservableList<EmployeeRow> data = FXCollections.observableArrayList();
+
+    public static void main(String[] args) { launch(args); }
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Employee Performance Tracker");
+
+        table.getColumns().addAll(
+            makeCol("Employee Name", EmployeeRow::nameProperty),
+            makeCol("Department", EmployeeRow::deptProperty),
+            makeCol("Productivity", EmployeeRow::scoreProperty),
+            makeCol("Comments", EmployeeRow::commentProperty)
+        );
+
+        Button refresh = new Button("Refresh");
+        refresh.setOnAction(e -> load());
+
+        BorderPane root = new BorderPane(table, null, null, new HBox(10, refresh), null);
+        BorderPane.setMargin(refresh, new Insets(10));
+
+        stage.setScene(new Scene(root, 700, 400));
+        stage.show();
+
+        load();
+    }
+
+    private <T> TableColumn<EmployeeRow,T> makeCol(String title,
+                    javafx.util.Callback<EmployeeRow,ObservableValue<T>> mapper) {
+        TableColumn<EmployeeRow,T> col = new TableColumn<>(title);
+        col.setCellValueFactory(c -> mapper.call(c.getValue()));
+        return col;
+    }
+
+    private void load() {
+        data.clear();
+        String q = """
+            SELECT e.name, e.department, p.productivity_score, p.manager_comments
+            FROM employees e
+            JOIN performance_reviews p ON e.employee_id = p.employee_id
+        """;
+
+        try (Connection c = DriverManager.getConnection(URL, USER, PASS);
+             Statement s = c.createStatement();
+             ResultSet r = s.executeQuery(q)) {
+
+            while (r.next()) {
+                data.add(new EmployeeRow(
+                    r.getString(1), r.getString(2),
+                    r.getDouble(3), r.getString(4)
+                ));
+            }
+            table.setItems(data);
+
+        } catch (SQLException e) {
+            alert("Database Error", e.getMessage());
+        }
+    }
+
+    private void alert(String title, String msg) {
+        Alert a = new Alert(Alert.AlertType.ERROR, msg);
+        a.setTitle(title);
+        a.showAndWait();
+    }
+
+    // Row model
+    public static class EmployeeRow {
+        private StringProperty name, dept, comment;
+        private DoubleProperty score;
+
+        public EmployeeRow(String n, String d, double s, String c) {
+            name = new SimpleStringProperty(n);
+            dept = new SimpleStringProperty(d);
+            score = new SimpleDoubleProperty(s);
+            comment = new SimpleStringProperty(c);
+        }
+        public StringProperty nameProperty() { return name; }
+        public StringProperty deptProperty() { return dept; }
+        public DoubleProperty scoreProperty() { return score; }
+        public StringProperty commentProperty() { return comment; }
+    }
+}
