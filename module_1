@@ -1,0 +1,81 @@
+package employee;
+
+public class Mod1 {
+    public static void main(String[] args) {
+
+        Employee e1 = new Employee("E001", "John", "IT", "Dev", 75000);
+        Manager m1 = new Manager("M001", "Jane", "IT", "Lead", 90000, 5000);
+
+        System.out.println(e1);
+        System.out.println(m1);
+
+        // Polymorphism
+        Employee[] list = {e1, m1};
+        for (Employee e : list)
+            System.out.println(e.calculateAnnualSalary());
+    }
+}
+
+// Base Class
+class Employee {
+    private String id, name, dept, role;
+    private double salary;
+    private static int count = 0;
+
+    public Employee() { count++; }
+
+    public Employee(String id, String name, String dept, String role, double salary) {
+        this();
+        this.id = id; this.name = name; this.dept = dept; this.role = role; this.salary = salary;
+    }
+
+    public double getSalary() { return salary; }
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getDept() { return dept; }
+
+    public double calculateAnnualSalary() { return salary * 12; }
+
+    @Override
+    public String toString() {
+        return id + " | " + name + " | " + dept + " | " + role;
+    }
+
+    @Override
+    protected void finalize() throws Throwable { count--; }
+}
+
+// Abstract class
+abstract class PerformanceEvaluator {
+    protected String evalId;
+    public PerformanceEvaluator(String id) { this.evalId = id; }
+
+    public abstract double evaluate(Employee e);
+
+    public String grade(double s) {
+        return s >= 4.5 ? "Outstanding" :
+               s >= 4.0 ? "Excellent" :
+               s >= 3.0 ? "Good" :
+               s >= 2.0 ? "Needs Improvement" : "Poor";
+    }
+}
+
+// Inheritance
+class Manager extends Employee {
+    private double bonus;
+
+    public Manager(String id,String n,String d,String r,double s,double b){
+        super(id,n,d,r,s);
+        this.bonus = b;
+    }
+
+    @Override
+    public double calculateAnnualSalary() {
+        return super.getSalary() * 12 + bonus;
+    }
+
+    @Override
+    public String toString() {
+        return "Manager: " + getId() + " | " + getName() + " | " + getDept();
+    }
+}
